@@ -1,36 +1,26 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const path = require("path");
+const Tour = require("../models/Tour");
+const authMiddleware = require("../middleware/authMiddleware");
 
-// Multer storage config
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/"); // folder where images are stored
-  },
-  filename: function (req, file, cb) {
-    const uniqueName = Date.now() + "-" + file.originalname;
-    cb(null, uniqueName);
-  },
+// Store files in memory (no disk) so we can save to MongoDB as Base64
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB per image
 });
 
-const upload = multer({ storage: storage, limits: { fileSize: 10 * 1024 * 1024 } }); //10mb
-
-// Example Tour model (adjust if you're using MongoDB or Mongoose)
-const Tour = require("../models/Tour");
+// Convert uploaded file buffer to Base64 data URI
+const toBase64 = (file) =>
+  `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
 
 // POST /api/tours
-router.post("/", upload.array("images", 10), async (req, res) => {
+router.post("/", authMiddleware, upload.array("images", 5), async (req, res) => {
   try {
     const { title, description } = req.body;
-    const imagePaths = req.files.map((file) => `/uploads/${file.filename}`);
+    const imageUrls = req.files.map(toBase64);
 
-    const newTour = new Tour({
-      title,
-      description,
-      imageUrls: imagePaths,
-    });
-
+    const newTour = new Tour({ title, description, imageUrls });
     await newTour.save();
 
     res.status(201).json({ message: "Tour created successfully", tour: newTour });
@@ -40,10 +30,7 @@ router.post("/", upload.array("images", 10), async (req, res) => {
   }
 });
 
-/**
- * GET all tours
- * GET /api/tours
- */
+// GET /api/tours
 router.get("/", async (req, res) => {
   try {
     const tours = await Tour.find().sort({ createdAt: -1 });
@@ -53,38 +40,30 @@ router.get("/", async (req, res) => {
   }
 });
 
-/**
- * DELETE a tour
- * DELETE /api/tours/:id
- */
-router.delete("/:id", async (req, res) => {
+// DELETE /api/tours/:id
+router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const tour = await Tour.findByIdAndDelete(req.params.id);
     if (!tour) return res.status(404).json({ message: "Tour not found" });
-
     res.json({ message: "Tour deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: "Error deleting tour" });
   }
 });
 
-/**
- * UPDATE a tour
- * PUT /api/tours/:id
- */
-// routes/tours.js
-router.put("/:id", upload.array("images", 10), async (req, res) => {
+// PUT /api/tours/:id
+router.put("/:id", authMiddleware, upload.array("images", 5), async (req, res) => {
   try {
     const { title, description } = req.body;
     const existingImages = JSON.parse(req.body.existingImages || "[]");
-
-    // Get newly uploaded image filenames
-    const newImageUrls = req.files.map((file) => "/uploads/" + file.filename);
-
-    // Merge old + new
+    const newImageUrls = req.files.map(toBase64);
     const allImages = [...existingImages, ...newImageUrls];
 
-    const updatedTour = await Tour.findByIdAndUpdate(req.params.id, { title, description, imageUrls: allImages }, { new: true });
+    const updatedTour = await Tour.findByIdAndUpdate(
+      req.params.id,
+      { title, description, imageUrls: allImages },
+      { new: true }
+    );
 
     res.json(updatedTour);
   } catch (err) {

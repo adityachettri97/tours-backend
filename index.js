@@ -20,10 +20,18 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const authRoutes = require("./routes/auth");
 const tourRoutes = require("./routes/tours");
 const chatRoutes = require("./routes/chat");
+const aboutRoutes = require("./routes/about");
+const packageRoutes = require("./routes/packages");
+const blogRoutes = require("./routes/blog");
+const reviewRoutes = require("./routes/reviews");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tours", tourRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/about", aboutRoutes);
+app.use("/api/packages", packageRoutes);
+app.use("/api/blog", blogRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 // MongoDB + Server start
 mongoose
