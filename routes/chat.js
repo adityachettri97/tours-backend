@@ -41,11 +41,8 @@ router.post("/", async (req, res) => {
     const apiMessages = firstUserIdx >= 0 ? messages.slice(firstUserIdx) : messages;
 
     const stream = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...apiMessages,
-      ],
+      model: "openai/gpt-oss-20b",
+      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...apiMessages],
       stream: true,
       max_tokens: 1024,
     });
